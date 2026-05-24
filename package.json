@@ -7,8 +7,8 @@
     "gna": "./dist/cli.js"
   },
   "scripts": {
-    "build": "tsc",
-    "build:web": "vite build",
+    "build": "vite build",
+    "build:cli": "tsc",
     "dev:web": "vite",
     "dev": "tsx src/cli.ts",
     "preview": "vite preview",
