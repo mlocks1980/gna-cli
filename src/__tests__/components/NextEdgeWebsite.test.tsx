@@ -1,12 +1,21 @@
 import React from "react";
-import { describe, it, expect, vi, beforeAll } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import NextEdgeWebsite from "../../components/NextEdgeWebsite.js";
+
+function stripMotionProps<T extends Record<string, unknown>>({
+  initial, animate, transition, whileInView, viewport, ...rest
+}: T) {
+  return rest;
+}
 
 vi.mock("framer-motion", () => ({
   motion: {
-    div: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-      <div {...props}>{children}</div>
+    div: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement> & Record<string, unknown>) => (
+      <div {...stripMotionProps(props)}>{children}</div>
+    ),
+    path: (props: React.SVGProps<SVGPathElement> & Record<string, unknown>) => (
+      <path {...stripMotionProps(props)} />
     ),
   },
 }));
@@ -28,9 +37,7 @@ describe("NextEdgeWebsite", () => {
     it("logo images point to the expected src", () => {
       render(<NextEdgeWebsite />);
       const logos = screen.getAllByAltText("NextEdge Machining logo");
-      logos.forEach((img) => {
-        expect(img).toHaveAttribute("src", "/nextedge-logo.png");
-      });
+      logos.forEach((img) => expect(img).toHaveAttribute("src", "/nextedge-logo.png"));
     });
   });
 
@@ -40,10 +47,9 @@ describe("NextEdgeWebsite", () => {
       expect(screen.getByText("NextEdge Machining")).toBeInTheDocument();
     });
 
-    it("renders the tagline at least once", () => {
+    it("renders the tagline", () => {
       render(<NextEdgeWebsite />);
-      const taglines = screen.getAllByText("From Vision to Precision");
-      expect(taglines.length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("From Vision to Precision").length).toBeGreaterThanOrEqual(1);
     });
 
     it("renders the LLC variant in the hero section", () => {
@@ -56,9 +62,7 @@ describe("NextEdgeWebsite", () => {
     it("renders the main headline", () => {
       render(<NextEdgeWebsite />);
       expect(
-        screen.getByText(
-          /Infrastructure intelligence for systems that cannot afford silent failure/i
-        )
+        screen.getByText(/Infrastructure intelligence for systems that cannot afford silent failure/i)
       ).toBeInTheDocument();
     });
 
@@ -71,23 +75,30 @@ describe("NextEdgeWebsite", () => {
   describe("call-to-action buttons", () => {
     it("renders the Contact button", () => {
       render(<NextEdgeWebsite />);
-      expect(
-        screen.getByRole("button", { name: /contact/i })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /contact/i })).toBeInTheDocument();
     });
 
     it("renders the Request a Conversation button", () => {
       render(<NextEdgeWebsite />);
-      expect(
-        screen.getByRole("button", { name: /request a conversation/i })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /request a conversation/i })).toBeInTheDocument();
     });
 
     it("renders the View the Concept button", () => {
       render(<NextEdgeWebsite />);
-      expect(
-        screen.getByRole("button", { name: /view the concept/i })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /view the concept/i })).toBeInTheDocument();
+    });
+  });
+
+  describe("View the Concept scroll behavior", () => {
+    it("calls scrollIntoView on the concept section when clicked", () => {
+      render(<NextEdgeWebsite />);
+
+      const conceptSection = document.getElementById("concept-section");
+      const scrollMock = vi.fn();
+      if (conceptSection) conceptSection.scrollIntoView = scrollMock;
+
+      fireEvent.click(screen.getByRole("button", { name: /view the concept/i }));
+      expect(scrollMock).toHaveBeenCalledWith({ behavior: "smooth" });
     });
   });
 
@@ -125,6 +136,64 @@ describe("NextEdgeWebsite", () => {
     });
   });
 
+  describe("concept section", () => {
+    it("renders the concept section with the correct id", () => {
+      const { container } = render(<NextEdgeWebsite />);
+      expect(container.querySelector("#concept-section")).toBeInTheDocument();
+    });
+
+    it("renders the Concept Architecture label", () => {
+      render(<NextEdgeWebsite />);
+      expect(screen.getByText(/Concept Architecture/i)).toBeInTheDocument();
+    });
+
+    it("renders the drift headline", () => {
+      render(<NextEdgeWebsite />);
+      expect(screen.getByText(/Critical failures rarely begin with catastrophic events/i)).toBeInTheDocument();
+    });
+
+    it("renders the 'unnoticed drift' phrase", () => {
+      render(<NextEdgeWebsite />);
+      expect(screen.getByText(/They begin with unnoticed drift/i)).toBeInTheDocument();
+    });
+
+    const flowSteps = [
+      "Sensors",
+      "Signal Conditioning",
+      "Telemetry Reliability Engine",
+      "Pattern Interpretation",
+      "Operational Alerts",
+      "Human Decision Support",
+    ];
+
+    flowSteps.forEach((step) => {
+      it(`renders flow step "${step}"`, () => {
+        render(<NextEdgeWebsite />);
+        expect(screen.getByText(step)).toBeInTheDocument();
+      });
+    });
+
+    const principles = [
+      "Signal Confidence",
+      "Operational Synchronization",
+      "Infrastructure Resilience",
+    ];
+
+    principles.forEach((p) => {
+      it(`renders core principle "${p}"`, () => {
+        render(<NextEdgeWebsite />);
+        expect(screen.getByText(p)).toBeInTheDocument();
+      });
+    });
+
+    it("renders all 3 principle descriptions", () => {
+      render(<NextEdgeWebsite />);
+      expect(screen.getByText(/validated against known noise signatures/i)).toBeInTheDocument();
+      expect(screen.getByText(/closing the gap between what sensors report/i)).toBeInTheDocument();
+      expect(screen.getByText(/Early drift detection/i)).toBeInTheDocument();
+    });
+  });
+
   describe("document structure", () => {
     it("renders a <main> element as the root", () => {
       const { container } = render(<NextEdgeWebsite />);
@@ -136,14 +205,19 @@ describe("NextEdgeWebsite", () => {
       expect(container.querySelector("header")).toBeInTheDocument();
     });
 
-    it("renders a <section> element for the hero", () => {
+    it("renders two <section> elements", () => {
       const { container } = render(<NextEdgeWebsite />);
-      expect(container.querySelector("section")).toBeInTheDocument();
+      expect(container.querySelectorAll("section").length).toBe(2);
     });
 
     it("renders an <h1> heading", () => {
       render(<NextEdgeWebsite />);
       expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+    });
+
+    it("renders an <h2> heading in the concept section", () => {
+      render(<NextEdgeWebsite />);
+      expect(screen.getByRole("heading", { level: 2 })).toBeInTheDocument();
     });
   });
 });
